@@ -3,15 +3,63 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DeleteMovie = exports.updateMovie = exports.AddMovie = exports.DisplayMovieByID = exports.DisplayMovieList = void 0;
+exports.DeleteMovie = exports.UpdateMovie = exports.AddMovie = exports.DisplayMovieByID = exports.DisplayMovieList = exports.ProcessLogout = exports.ProcessLogin = exports.ProcessRegistration = void 0;
+const passport_1 = __importDefault(require("passport"));
+const user_1 = __importDefault(require("../Models/user"));
 const movie_1 = __importDefault(require("../Models/movie"));
 function SanitizeArray(unsanitizedArray) {
-    let SanitizedArray = Array();
+    let sanitizedArray = Array();
     for (const unsanitizedString of unsanitizedArray) {
-        SanitizedArray.push(unsanitizedString.trim());
+        sanitizedArray.push(unsanitizedString.trim());
     }
-    return SanitizedArray;
+    return sanitizedArray;
 }
+function ProcessRegistration(req, res, next) {
+    let newUser = new user_1.default({
+        username: req.body.username,
+        emailAddress: req.body.EmailAddress,
+        displayName: req.body.FirstName + " " + req.body.LastName
+    });
+    user_1.default.register(newUser, req.body.password, (err) => {
+        if (err) {
+            console.error('Error: Inserting New User');
+            if (err.name == "UserExistsError") {
+                console.error('Error: User Already Exists');
+            }
+            return res.json({ success: false, msg: 'User not Registered Successfully!' });
+        }
+        return passport_1.default.authenticate('local')(req, res, () => {
+            return res.json({ success: true, msg: 'User Logged in Successfully!', user: newUser });
+        });
+    });
+}
+exports.ProcessRegistration = ProcessRegistration;
+function ProcessLogin(req, res, next) {
+    passport_1.default.authenticate('local', (err, user, info) => {
+        if (err) {
+            console.error(err);
+            return next(err);
+        }
+        if (!user) {
+            return res.json({ success: false, msg: 'User Not Logged in Successfully!' });
+        }
+        req.login(user, (err) => {
+            if (err) {
+                console.error(err);
+                return next(err);
+            }
+            return res.json({ success: true, msg: 'User Logged in Successfully!', user: user });
+        });
+    })(req, res, next);
+}
+exports.ProcessLogin = ProcessLogin;
+function ProcessLogout(req, res, next) {
+    req.logout(() => {
+        console.log("User Logged Out");
+    });
+    res.json({ success: true, msg: 'User Logged out Successfully!' });
+}
+exports.ProcessLogout = ProcessLogout;
 function DisplayMovieList(req, res, next) {
     movie_1.default.find({})
         .then(function (data) {
@@ -36,8 +84,8 @@ exports.DisplayMovieByID = DisplayMovieByID;
 function AddMovie(req, res, next) {
     let genres = SanitizeArray(req.body.genres.split(","));
     let directors = SanitizeArray(req.body.directors.split(","));
-    let writers = SanitizeArray(req.body.writers.split(","));
     let actors = SanitizeArray(req.body.actors.split(","));
+    let writers = SanitizeArray(req.body.writers.split(","));
     let movie = new movie_1.default({
         movieID: req.body.movieID,
         title: req.body.title,
@@ -53,7 +101,7 @@ function AddMovie(req, res, next) {
         criticsRating: req.body.criticsRating
     });
     movie_1.default.create(movie)
-        .then(function () {
+        .then(function (data) {
         res.json(movie);
     })
         .catch(function (err) {
@@ -61,12 +109,12 @@ function AddMovie(req, res, next) {
     });
 }
 exports.AddMovie = AddMovie;
-function updateMovie(req, res, next) {
+function UpdateMovie(req, res, next) {
     let id = req.params.id;
     let genres = SanitizeArray(req.body.genres.split(","));
     let directors = SanitizeArray(req.body.directors.split(","));
-    let writers = SanitizeArray(req.body.writers.split(","));
     let actors = SanitizeArray(req.body.actors.split(","));
+    let writers = SanitizeArray(req.body.writers.split(","));
     let movieToUpdate = new movie_1.default({
         _id: id,
         movieID: req.body.movieID,
@@ -83,14 +131,14 @@ function updateMovie(req, res, next) {
         criticsRating: req.body.criticsRating
     });
     movie_1.default.updateOne({ _id: id }, movieToUpdate)
-        .then(function () {
+        .then(function (data) {
         res.json(movieToUpdate);
     })
         .catch(function (err) {
         console.error(err);
     });
 }
-exports.updateMovie = updateMovie;
+exports.UpdateMovie = UpdateMovie;
 function DeleteMovie(req, res, next) {
     let id = req.params.id;
     movie_1.default.deleteOne({ _id: id })

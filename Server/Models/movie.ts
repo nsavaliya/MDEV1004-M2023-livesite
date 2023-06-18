@@ -11,7 +11,7 @@ interface IMovie {
     year: number,
     length: number,
     shortDescription: string,
-    mpaRating: string,
+    mpaRating: String,
     criticsRating: number
 }
 
